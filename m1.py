@@ -24,6 +24,15 @@ from xgboost import XGBClassifier
 # X: features aggregated over 30–180 days per patient
 # y: binary label: 1 if deterioration within 90 days else 0
 
+X=['race', 'gender', 'age', 'num_lab_procedures', 'num_procedures', 'num_medications', 'number_outpatient',
+   'number_emergency', 'number_inpatient','max_glu_serum', 
+   'A1Cresult', 'metformin', 'repaglinide', 'nateglinide', 'chlorpropamide', 'glimepiride', 'acetohexamide', 
+   'glipizide', 'glyburide', 'tolbutamide', 'pioglitazone', 'rosiglitazone', 'acarbose', 'miglitol', 'troglitazone',
+   'tolazamide', 'examide', 'citoglipton', 'insulin', 'glyburide-metformin', 'glipizide-metformin', 
+   'glimepiride-pioglitazone', 'metformin-rosiglitazone', 'metformin-pioglitazone', 'change', 'diabetesMed']
+
+y = ['readmitted']
+
 # Split train/test with stratification
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
@@ -122,3 +131,4 @@ evaluation_artifacts = {
     "pr_curve": {"precision": precision, "recall": recall, "thresholds": pr_thresholds},
     "calibration_curve": {"prob_true": prob_true, "prob_pred": prob_pred},
 }
+
