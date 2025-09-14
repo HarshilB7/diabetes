@@ -1,10 +1,7 @@
-# Core libs
 import numpy as np
 import pandas as pd
 import joblib
 
-
-# Modeling
 from sklearn.ensemble import RandomForestClassifier, StackingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.calibration import CalibratedClassifierCV, calibration_curve
@@ -20,17 +17,11 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
-# XGBoost
 from xgboost import XGBClassifier # type: ignore
 
-# Example: X, y ready as numpy arrays or pandas DataFrame/Series
-# X: features aggregated over 30–180 days per patient
-# y: binary label: 1 if deterioration within 90 days else 0
-
-# Load local CSV
 df = pd.read_csv("diabetic_data.csv")
 
-# Feature and target columns provided
+# Feature and target columns
 X_cols = ['race', 'gender', 'age', 'num_lab_procedures', 'num_procedures', 'num_medications', 'number_outpatient',
           'number_emergency', 'number_inpatient','max_glu_serum', 
           'A1Cresult', 'metformin', 'repaglinide', 'nateglinide', 'chlorpropamide', 'glimepiride', 'acetohexamide', 
@@ -43,13 +34,8 @@ y_col = 'readmitted'
 df = df[df['race'] != '?']
 df.replace('?', np.nan, inplace=True)
 
-
-# Binarize target:
-# The dataset encodes readmission as: '<30', '>30', 'NO'
-# Define positive class as readmitted within 30 days
 df['readmit_30'] = (df[y_col] == '<30').astype(int)
 
-# Select features and target
 X_raw = df[X_cols].copy()
 y = df['readmit_30'].values
 
@@ -82,7 +68,6 @@ preprocess = ColumnTransformer(
     remainder="drop"
 )
 
-
 rf = RandomForestClassifier(
     n_estimators=400, n_jobs=-1, random_state=42
 )
@@ -104,13 +89,11 @@ stack = StackingClassifier(
     n_jobs=-1
 )
 
-# End-to-end pipeline with preprocessing
 model = Pipeline(steps=[
     ("preprocess", preprocess),
     ("stack", stack)
 ])
 
-# Optional calibration wrapper
 clf = CalibratedClassifierCV(estimator=model, method="isotonic", cv=3)
 
 # Train/test split
@@ -119,37 +102,27 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 print("start training...\n")
-# Fit
 clf.fit(X_train, y_train)
-
 print("training completed...\n")
 joblib.dump(clf, "readmit_stack_calibrated.pkl")
 
-# Predict probabilities for positive class
 y_proba = clf.predict_proba(X_test)[:, 1]
 
-# Choose an operating threshold; 0.5 default, but consider tuning by PR curve or cost
 threshold = 0.5
 y_pred = (y_proba >= threshold).astype(int)
 
-# Evaluation metrics
 auroc = roc_auc_score(y_test, y_proba)
 auprc = average_precision_score(y_test, y_proba)
 
-# Confusion matrix at chosen threshold
 cm = confusion_matrix(y_test, y_pred)
 tn, fp, fn, tp = cm.ravel()
 
-# Calibration curve data (for plotting later)
 prob_true, prob_pred = calibration_curve(y_test, y_proba, n_bins=10, strategy="quantile")
 
-# ROC curve points
 fpr, tpr, roc_thresholds = roc_curve(y_test, y_proba)
 
-# Precision-Recall curve points
 precision, recall, pr_thresholds = precision_recall_curve(y_test, y_proba)
 
-# Print summary
 print(f"AUROC: {auroc:.4f}")
 print(f"AUPRC: {auprc:.4f}")
 print("Confusion Matrix (threshold=0.5):")
@@ -157,15 +130,3 @@ print(cm)
 print(f"TPR (Recall): {tp / (tp + fn + 1e-12):.4f}")
 print(f"FPR: {fp / (fp + tn + 1e-12):.4f}")
 
-
-# start training...
-
-# training completed...
-
-# AUROC: 0.6243
-# AUPRC: 0.1999
-# Confusion Matrix (threshold=0.5):
-# [[17659     6]
-#  [ 2224    10]]
-# TPR (Recall): 0.0045
-# FPR: 0.0003
